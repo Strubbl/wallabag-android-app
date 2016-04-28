@@ -5,18 +5,20 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.util.Log;
 
-import com.facebook.stetho.okhttp.StethoInterceptor;
-import com.squareup.okhttp.Credentials;
-import com.squareup.okhttp.HttpUrl;
-import com.squareup.okhttp.Interceptor;
-import com.squareup.okhttp.OkHttpClient;
-import com.squareup.okhttp.Request;
-import com.squareup.okhttp.Response;
+import com.facebook.stetho.okhttp3.StethoInterceptor;
+import okhttp3.Credentials;
+import okhttp3.HttpUrl;
+import okhttp3.Interceptor;
+import okhttp3.JavaNetCookieJar;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 import java.io.IOException;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
 import java.security.cert.CertificateException;
+import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
@@ -96,13 +98,11 @@ public class WallabagConnection {
     }
 
     public static OkHttpClient createClient() {
-        OkHttpClient client = new OkHttpClient();
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.GINGERBREAD) {
-            CookieManager cookieManager = new CookieManager();
-            cookieManager.setCookiePolicy(CookiePolicy.ACCEPT_ALL);
-            client.setCookieHandler(cookieManager);
-        }
+        OkHttpClient client;
+
+        CookieManager cookieManager = new CookieManager();
+        cookieManager.setCookiePolicy(CookiePolicy.ACCEPT_ALL);
 
         if(App.getInstance().getSettings().getBoolean(Settings.ALL_CERTS, false)) {
             try {
@@ -129,21 +129,34 @@ public class WallabagConnection {
                 // Create an ssl socket factory with our all-trusting manager
                 final SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
 
-                client.setSslSocketFactory(sslSocketFactory);
-                client.setHostnameVerifier(new HostnameVerifier() {
-                    @Override
-                    public boolean verify(String hostname, SSLSession session) {
-                        return true;
-                    }
-                });
+                client = new OkHttpClient.Builder()
+                        .cookieJar(new JavaNetCookieJar(cookieManager))
+                        .connectTimeout(10, TimeUnit.SECONDS)
+                        .writeTimeout(10, TimeUnit.SECONDS)
+                        .readTimeout(60, TimeUnit.SECONDS)
+                        .sslSocketFactory(sslSocketFactory)
+                        .hostnameVerifier(new HostnameVerifier() {
+                            @Override
+                            public boolean verify(String hostname, SSLSession session) {
+                                return true;
+                            }
+                        })
+                        .build();
+
+                if (BuildConfig.DEBUG) {
+                    client.interceptors().add(new LoggingInterceptor());
+                    client.networkInterceptors().add(new StethoInterceptor());
+                }
+
+                return client;
             } catch (Exception ignored) {}
         }
-
-        if (BuildConfig.DEBUG) {
-            client.interceptors().add(new LoggingInterceptor());
-            client.networkInterceptors().add(new StethoInterceptor());
-        }
-
+        client = new OkHttpClient.Builder()
+                .cookieJar(new JavaNetCookieJar(cookieManager))
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .writeTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .build();
         return client;
     }
 

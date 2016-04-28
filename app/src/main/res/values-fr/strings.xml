@@ -154,4 +154,6 @@ GAULUPEAU Jonathan — 2013
     <string name="ttsError">Erreur de Synthèse Vocale</string>
     <string name="menuAbout">À propos</string>
     <string name="aboutText">&lt;b>Application wallabag pour Android&lt;/b>&lt;br />wallabag est une application de lecture différée : elle permet simplement d’archiver une page web en ne conservant que le contenu. Les éléments superflus (menu, publicité, etc.) sont supprimés.</string>
+    <string name="menuDownloadPdf">Télécharger le fichier PDF</string>
+    <string name="downloadPdfPathStart">Téléchargement du fichier à l\'emplacement %s</string>
 </resources>
